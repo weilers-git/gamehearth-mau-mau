@@ -1,6 +1,6 @@
 # Mau-Mau für Gamehearth
 
-Mau-Mau für 2–6 Spieler, jeder am eigenen Gerät: das erste Spiel für [Gamehearth](https://github.com/weilers-git/gamehearth), eine selbst hostbare Spieleplattform. Die Spiellogik läuft als Reducer auf dem Server, die Oberfläche ist mit Phaser 4 gebaut.
+Mau-Mau für 2–6 Spieler, jeder am eigenen Gerät: das erste Spiel für Gamehearth, eine selbst hostbare Spieleplattform. Die Spiellogik läuft als Reducer auf dem Server, die Oberfläche ist mit Phaser 4 gebaut.
 
 Auf einen Gamehearth-Server kommt das Spiel über einen Katalog, etwa den [Gamehearth-Katalog](https://github.com/weilers-git/gamehearth-catalog): In der Verwaltung den Katalog hinzufügen und Mau-Mau installieren.
 
