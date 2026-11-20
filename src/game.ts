@@ -1,4 +1,5 @@
-import { defineGame, type GameState, type PlayerId, type Random } from "@gamehearth/sdk";
+import { defineGame, type CatalogOf, type GameState, type PlayerId, type Random } from "@gamehearth/sdk";
+import manifest from "../manifest.json";
 import { fullDeck, rankOf, suitOf, suits, type Card, type Suit } from "./cards";
 
 export const startingHandSize = 5;
@@ -28,6 +29,8 @@ export interface Secret {
 
 export type MauMauState = GameState<Public, Hand, Secret>;
 
+export type Ids = CatalogOf<typeof manifest>;
+
 export type MauMauAction = { type: "play"; card: Card; wish?: Suit } | { type: "draw" } | { type: "pass" };
 
 export interface Options {
@@ -38,7 +41,7 @@ export interface Options {
 
 export const standardOptions: Options = { bubeAufBube: false, siebenerStapeln: true, ass: "nochmal" };
 
-export const mauMau = defineGame<MauMauState, MauMauAction, Options>({
+export const mauMau = defineGame<MauMauState, MauMauAction, Options, Ids>({
   setup({ players, random }) {
     const deck = random.shuffle(fullDeck);
     const hands: Record<PlayerId, Hand> = {};
@@ -83,7 +86,7 @@ export const mauMau = defineGame<MauMauState, MauMauAction, Options>({
     return plays.length > 0 ? plays : [{ type: "draw" }];
   },
 
-  apply(state, action, { player, players, random, options }) {
+  apply(state, action, { player, players, random, options, profile }) {
     switch (action.type) {
       case "play":
         playCard(state, player, players, action.card, action.wish, options);
@@ -96,21 +99,29 @@ export const mauMau = defineGame<MauMauState, MauMauAction, Options>({
         break;
     }
     updateCounts(state);
+    for (const winner of winnersOf(state) ?? []) {
+      profile.stat(winner, "siege", 1);
+    }
   },
 
   result(state) {
-    const finished = Object.keys(state.players).filter((player) => handOf(state, player).hand.length === 0);
-    if (finished.length > 0) {
-      return { winners: finished };
-    }
-    const seats = Object.keys(state.players);
-    if (state.public.stuck >= seats.length) {
-      const fewest = Math.min(...seats.map((player) => handOf(state, player).hand.length));
-      return { winners: seats.filter((player) => handOf(state, player).hand.length === fewest) };
-    }
-    return undefined;
+    const winners = winnersOf(state);
+    return winners === undefined ? undefined : { winners };
   },
 });
+
+export function winnersOf(state: MauMauState): PlayerId[] | undefined {
+  const finished = Object.keys(state.players).filter((player) => handOf(state, player).hand.length === 0);
+  if (finished.length > 0) {
+    return finished;
+  }
+  const seats = Object.keys(state.players);
+  if (state.public.stuck >= seats.length) {
+    const fewest = Math.min(...seats.map((player) => handOf(state, player).hand.length));
+    return seats.filter((player) => handOf(state, player).hand.length === fewest);
+  }
+  return undefined;
+}
 
 export function topCard(state: MauMauState): Card {
   const top = state.public.discard[state.public.discard.length - 1];

@@ -9,7 +9,7 @@ import {
 } from "@gamehearth/sdk/platform";
 import { describe, expect, it } from "vitest";
 import { fullDeck, mauMau, rankOf, type Card, type MauMauAction } from "../src";
-import type { MauMauMatch } from "./helpers";
+import { catalog, type MauMauMatch } from "./helpers";
 
 const gamesPerPlayerCount = 60;
 const maxMoves = 3000;
@@ -71,7 +71,7 @@ function checkNoLeaks(match: MauMauMatch): void {
 
 function playRandomly(playerCount: number, seed: string): Played {
   const bot = new SeededRandom(randomStateFromSeed(`bot-${seed}`));
-  const created = createMatch(mauMau, { playerCount, seed });
+  const created = createMatch(mauMau, { playerCount, seed, catalog });
   if (!created.ok) throw new Error(created.error.message);
   let match = created.match;
   checkInvariants(match);
@@ -87,7 +87,7 @@ function playRandomly(playerCount: number, seed: string): Played {
       expectedVersion: match.version,
     };
     moves.push(move);
-    const outcome = applyMove(mauMau, JSON.parse(JSON.stringify(match)) as MauMauMatch, move);
+    const outcome = applyMove(mauMau, JSON.parse(JSON.stringify(match)) as MauMauMatch, move, { catalog });
     if (!outcome.ok) throw new Error(`${seed}, Zug ${steps}: ${outcome.error.code} ${outcome.error.message}`);
     match = outcome.match;
     checkInvariants(match);
@@ -119,11 +119,11 @@ describe.each([2, 3, 4, 5, 6])("Zufallspartien mit %i Spielern", (playerCount) =
 
   it("lassen sich aus Seed und Zügen exakt wiederholen", () => {
     for (const game of played.slice(0, 30)) {
-      const created = createMatch(mauMau, { playerCount, seed: game.seed });
+      const created = createMatch(mauMau, { playerCount, seed: game.seed, catalog });
       if (!created.ok) throw new Error(created.error.message);
       let match = created.match;
       for (const move of game.moves) {
-        const outcome = applyMove(mauMau, match, move);
+        const outcome = applyMove(mauMau, match, move, { catalog });
         if (!outcome.ok) throw new Error(outcome.error.message);
         match = outcome.match;
       }

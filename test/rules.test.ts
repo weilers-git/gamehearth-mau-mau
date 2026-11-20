@@ -1,7 +1,7 @@
 import { applyMove, createMatch } from "@gamehearth/sdk/platform";
 import { describe, expect, it } from "vitest";
 import { fullDeck, mauMau, standardOptions, startingHandSize } from "../src";
-import { matchFrom, movesOf, play, top, type Table } from "./helpers";
+import { catalog, matchFrom, movesOf, play, playWithChanges, top, type Table } from "./helpers";
 
 describe("Austeilen", () => {
   it.each([2, 3, 4, 5, 6])("verteilt bei %i Spielern alle 32 Karten genau einmal", (playerCount) => {
@@ -256,9 +256,17 @@ describe("Ende", () => {
   ] as const)("beendet die Partie, wenn jemand %s als letzte Karte legt", (_name, card) => {
     const table = matchFrom({ hands: { p1: [card], p2: ["karo-D"] }, discard: ["herz-9"] });
     const action = card === "herz-B" ? { type: "play" as const, card, wish: "pik" as const } : { type: "play" as const, card };
-    const finished = play(table, "p1", action);
+    const { match: finished, changes } = playWithChanges(table, "p1", action, { p1: { items: {}, stats: { siege: 4 }, flags: {} } });
     expect(finished.result).toEqual({ winners: ["p1"] });
-    expect(applyMove(mauMau, finished, { player: "p2", action: { type: "draw" }, now: 0 }).ok).toBe(false);
+    expect(changes).toEqual([{ player: "p1", op: "stat", id: "siege", value: 1 }]);
+    expect(applyMove(mauMau, finished, { player: "p2", action: { type: "draw" }, now: 0 }, { catalog }).ok).toBe(false);
+  });
+
+  it("gibt keinen Sieg, solange die Partie läuft", () => {
+    const table = matchFrom({ hands: { p1: ["herz-K", "herz-D"], p2: ["karo-D"] }, discard: ["herz-9"] });
+    const { match, changes } = playWithChanges(table, "p1", { type: "play", card: "herz-K" });
+    expect(match.result).toBeUndefined();
+    expect(changes).toEqual([]);
   });
 
   it("endet, wenn niemand mehr legen oder ziehen kann, und gibt den Sieg an die wenigsten Karten", () => {
@@ -272,8 +280,25 @@ describe("Ende", () => {
       match = play(match, player, { type: "draw" });
       expect(match.result).toBeUndefined();
     }
-    match = play(match, "p3", { type: "draw" });
-    expect(match.result).toEqual({ winners: ["p2"] });
+    const last = playWithChanges(match, "p3", { type: "draw" });
+    expect(last.match.result).toEqual({ winners: ["p2"] });
+    expect(last.changes).toEqual([{ player: "p2", op: "stat", id: "siege", value: 1 }]);
+  });
+
+  it("gibt bei Gleichstand allen mit den wenigsten Karten einen Sieg", () => {
+    let match = matchFrom({
+      hands: { p1: ["pik-K"], p2: ["kreuz-K"], p3: ["karo-K", "karo-D"] },
+      discard: ["herz-9"],
+      deck: [],
+    });
+    match = play(match, "p1", { type: "draw" });
+    match = play(match, "p2", { type: "draw" });
+    const last = playWithChanges(match, "p3", { type: "draw" });
+    expect(last.match.result).toEqual({ winners: ["p1", "p2"] });
+    expect(last.changes).toEqual([
+      { player: "p1", op: "stat", id: "siege", value: 1 },
+      { player: "p2", op: "stat", id: "siege", value: 1 },
+    ]);
   });
 
   it("setzt die Zählung zurück, sobald jemand wieder legen kann", () => {
@@ -338,14 +363,14 @@ describe("Hausregeln", () => {
       for (const siebenerStapeln of [false, true]) {
         for (const ass of ["nochmal", "aussetzen"] as const) {
           const options = { bubeAufBube, siebenerStapeln, ass };
-          const created = createMatch(mauMau, { playerCount: 3, seed: `haus-${bubeAufBube}-${siebenerStapeln}-${ass}`, options });
+          const created = createMatch(mauMau, { playerCount: 3, seed: `haus-${bubeAufBube}-${siebenerStapeln}-${ass}`, options, catalog });
           if (!created.ok) {
             throw new Error(created.error.message);
           }
           let match = created.match;
           for (let step = 0; step < 2000 && match.result === undefined; step++) {
             const player = match.players.find((seat) => (match.moves[seat] ?? []).length > 0) as string;
-            const outcome = applyMove(mauMau, match, { player, action: (match.moves[player] ?? [])[0]!, now: 0 });
+            const outcome = applyMove(mauMau, match, { player, action: (match.moves[player] ?? [])[0]!, now: 0 }, { catalog });
             if (!outcome.ok) {
               throw new Error(outcome.error.message);
             }

@@ -1,7 +1,10 @@
-import { applyMove, matchFormat, randomStateFromSeed, type Match } from "@gamehearth/sdk/platform";
+import { applyMove, matchFormat, randomStateFromSeed, type Match, type ProfileChange, type ProfileData } from "@gamehearth/sdk/platform";
+import manifest from "../manifest.json";
 import { mauMau, standardOptions, type Card, type MauMauAction, type MauMauState, type Options, type Phase, type Suit } from "../src";
 
 export type MauMauMatch = Match<MauMauState, MauMauAction>;
+
+export const catalog = manifest;
 
 export interface Table {
   hands: Record<string, Card[]>;
@@ -37,18 +40,27 @@ export function matchFrom(table: Table, options: Options = standardOptions): Mau
     players,
     options: { ...options },
     state,
-    moves: Object.fromEntries(players.map((player) => [player, mauMau.legalMoves(state, player, { players, options })])),
+    moves: Object.fromEntries(players.map((player) => [player, mauMau.legalMoves(state, player, { players, options, profiles: {} })])),
     randomState: randomStateFromSeed("tisch"),
     version: 0,
   };
 }
 
 export function play(match: MauMauMatch, player: string, action: MauMauAction): MauMauMatch {
-  const outcome = applyMove(mauMau, match, { player, action, now: 0 });
+  return playWithChanges(match, player, action).match;
+}
+
+export function playWithChanges(
+  match: MauMauMatch,
+  player: string,
+  action: MauMauAction,
+  profiles: Record<string, ProfileData> = {},
+): { match: MauMauMatch; changes: ProfileChange[] } {
+  const outcome = applyMove(mauMau, match, { player, action, now: 0 }, { catalog, profiles });
   if (!outcome.ok) {
     throw new Error(`${player}: ${JSON.stringify(action)} abgelehnt: ${outcome.error.code} ${outcome.error.message}`);
   }
-  return outcome.match;
+  return { match: outcome.match, changes: outcome.changes ?? [] };
 }
 
 export function movesOf(match: MauMauMatch, player: string): MauMauAction[] {

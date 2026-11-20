@@ -20,17 +20,19 @@ npm run check
 |---|---|
 | `npm test` | Regeltests und Simulationen mit Vitest |
 | `npm run build` | baut den Client nach `dist/client` |
-| `npm run check` | prüft das Spiel mit dem Gamehearth-Werkzeug: Manifest, Lizenzen, Bot-Partien, Lecks, Determinismus, Lauf in der Server-Sandbox |
+| `npm run check` | prüft das Spiel mit dem Gamehearth-Werkzeug: Manifest, Lizenzen, Bot-Partien, Lecks, Determinismus, Lauf in der Server-Sandbox; trägt neue Profil-IDs in `ids.lock` ein |
 | `npm run pack` | baut den Client und das Spielpaket `dist/mau-mau-<version>.zip`, nur wenn `check` keine Fehler meldet |
 
 SDK und Werkzeug liegen als npm-Tarball in `vendor/`, solange die Plattform noch nicht auf npm ist. Eine neue Fassung kommt aus dem Plattform-Repo: dort in `packages/sdk` und `packages/devtool` jeweils `npm pack --pack-destination <dieses Repo>/vendor`, danach hier `npm install ./vendor/gamehearth-sdk-<version>.tgz` und `npm install -D ./vendor/gamehearth-<version>.tgz`. Ein einfaches `npm install` nähme bei gleicher Versionsnummer den alten Stand aus dem Lockfile.
 
+`ids.lock` hält fest, welche Profil-IDs (hier der Stat `siege`) es je gab, und gehört ins Repo. Eine veröffentlichte ID bleibt für immer in `manifest.json`, notfalls mit `"deprecated": true`; in der CI scheitert `check`, wenn `ids.lock` nicht zum Manifest passt.
+
 ## Veröffentlichen
 
 1. Version in `manifest.json` und `package.json` erhöhen, committen.
-2. Tag setzen und pushen: `git tag v0.2.0 && git push origin v0.2.0`.
+2. Tag setzen und pushen: `git tag v0.3.0 && git push origin v0.3.0`.
 3. Die CI baut mit `check` und `pack` das Paket und hängt es an ein Release mit diesem Tag.
-4. Im Katalog-Repo die Version eintragen: `npx gamehearth catalog add catalog.json https://github.com/weilers-git/gamehearth-mau-mau/releases/download/v0.2.0/mau-mau-0.2.0.zip`, committen und pushen.
+4. Im Katalog-Repo die Version eintragen: `npx gamehearth catalog add catalog.json https://github.com/weilers-git/gamehearth-mau-mau/releases/download/v0.3.0/mau-mau-0.3.0.zip`, committen und pushen.
 
 Danach zeigt die Verwaltung jedes Servers mit diesem Katalog das Update an.
 
@@ -54,6 +56,8 @@ Danach zeigt die Verwaltung jedes Servers mit diesem Katalog das Update an.
 | Ass | Wer ein Ass legt, ist gleich noch einmal dran und muss eine passende Karte nachlegen: gleiche Farbe, ein weiteres Ass oder einen Buben. Kann er nicht, zieht er eine Karte; passt sie, darf er sie sofort legen, sonst ist der Nächste dran. |
 
 **Ende:** Wer zuerst keine Karten mehr hat, gewinnt, und die Partie endet sofort. Das gilt auch, wenn die letzte Karte eine Sonderkarte ist. Können reihum alle weder legen noch ziehen, weil kein Stapel mehr da ist, endet die Partie ebenfalls; dann gewinnt, wer die wenigsten Karten hat.
+
+**Siege:** Wer gewinnt, bekommt im Profil einen Sieg (`siege`), bei Gleichstand jeder mit den wenigsten Karten. Die Spielseite der Plattform zeigt dazu eine Bestenliste. Gäste bekommen ihn nur für diese Runde.
 
 **Ohne:** „Mau“ und „Mau-Mau“ ansagen.
 
