@@ -23,7 +23,7 @@ npm run check
 | `npm run check` | prüft das Spiel mit dem Gamehearth-Werkzeug: Manifest, Lizenzen, Bot-Partien, Lecks, Determinismus, Lauf in der Server-Sandbox |
 | `npm run pack` | baut den Client und das Spielpaket `dist/mau-mau-<version>.zip`, nur wenn `check` keine Fehler meldet |
 
-SDK und Werkzeug liegen als npm-Tarball in `vendor/`, solange die Plattform noch nicht auf npm ist. Eine neue Fassung kommt aus dem Plattform-Repo: dort in `packages/sdk` und `packages/devtool` jeweils `npm pack --pack-destination <dieses Repo>/vendor`, danach hier `npm install ./vendor/gamehearth-sdk-<version>.tgz` und `npm install -D ./vendor/gamehearth-devtool-<version>.tgz`. Ein einfaches `npm install` nähme bei gleicher Versionsnummer den alten Stand aus dem Lockfile.
+SDK und Werkzeug liegen als npm-Tarball in `vendor/`, solange die Plattform noch nicht auf npm ist. Eine neue Fassung kommt aus dem Plattform-Repo: dort in `packages/sdk` und `packages/devtool` jeweils `npm pack --pack-destination <dieses Repo>/vendor`, danach hier `npm install ./vendor/gamehearth-sdk-<version>.tgz` und `npm install -D ./vendor/gamehearth-<version>.tgz`. Ein einfaches `npm install` nähme bei gleicher Versionsnummer den alten Stand aus dem Lockfile.
 
 ## Veröffentlichen
 
@@ -56,6 +56,16 @@ Danach zeigt die Verwaltung jedes Servers mit diesem Katalog das Update an.
 **Ende:** Wer zuerst keine Karten mehr hat, gewinnt, und die Partie endet sofort. Das gilt auch, wenn die letzte Karte eine Sonderkarte ist. Können reihum alle weder legen noch ziehen, weil kein Stapel mehr da ist, endet die Partie ebenfalls; dann gewinnt, wer die wenigsten Karten hat.
 
 **Ohne:** „Mau“ und „Mau-Mau“ ansagen.
+
+**Hausregeln:** Der Gastgeber stellt sie in der Lobby ein. Die Tabelle oben beschreibt den Standard.
+
+| Option | Standard | Wirkung |
+|---|---|---|
+| Bube auf Bube | nein | mit „ja“ darf ein Bube auch auf einen Buben; der neue Wunsch gilt |
+| 7er stapeln | ja | mit „nein“ darf niemand eine 7 auf eine offene 7 legen; der Nächste zieht die Strafkarten |
+| Ass | noch mal dran | mit „Nächster setzt aus“ wirkt ein Ass wie eine 8: Der Nächste setzt aus, und wer es gelegt hat, muss nicht nachlegen |
+
+Abweichende Hausregeln nennt der Tisch dort, wo sie gerade greifen, etwa „+2 · nicht stapeln“.
 
 ## Zustand
 

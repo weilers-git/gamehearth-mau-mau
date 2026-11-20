@@ -1,7 +1,7 @@
 import { applyMove, createMatch } from "@gamehearth/sdk/platform";
 import { describe, expect, it } from "vitest";
-import { fullDeck, mauMau, startingHandSize } from "../src";
-import { matchFrom, movesOf, play, top } from "./helpers";
+import { fullDeck, mauMau, standardOptions, startingHandSize } from "../src";
+import { matchFrom, movesOf, play, top, type Table } from "./helpers";
 
 describe("Austeilen", () => {
   it.each([2, 3, 4, 5, 6])("verteilt bei %i Spielern alle 32 Karten genau einmal", (playerCount) => {
@@ -287,5 +287,73 @@ describe("Ende", () => {
     match = play(match, "p2", { type: "play", card: "herz-K" });
     expect(match.state.public.stuck).toBe(0);
     expect(match.result).toBeUndefined();
+  });
+});
+
+describe("Hausregeln", () => {
+  it("lässt mit Bube auf Bube einen Buben auf einen Buben legen", () => {
+    const table: Table = { hands: { p1: ["pik-B", "herz-K"], p2: ["kreuz-B", "karo-9"] }, discard: ["herz-9"], deck: ["kreuz-A"] };
+    const strict = play(matchFrom(table), "p1", { type: "play", card: "pik-B", wish: "herz" });
+    expect(movesOf(strict, "p2")).toEqual([{ type: "draw" }]);
+    const loose = play(matchFrom(table, { ...standardOptions, bubeAufBube: true }), "p1", { type: "play", card: "pik-B", wish: "herz" });
+    expect(movesOf(loose, "p2")).toEqual([
+      { type: "play", card: "kreuz-B", wish: "kreuz" },
+      { type: "play", card: "kreuz-B", wish: "pik" },
+      { type: "play", card: "kreuz-B", wish: "herz" },
+      { type: "play", card: "kreuz-B", wish: "karo" },
+    ]);
+    const again = play(loose, "p2", { type: "play", card: "kreuz-B", wish: "karo" });
+    expect(again.state.public).toMatchObject({ wish: "karo", current: "p1" });
+  });
+
+  it("lässt ohne 7er stapeln den Nächsten nur ziehen", () => {
+    const table: Table = {
+      hands: { p1: ["herz-7", "pik-K"], p2: ["pik-7", "herz-K"], p3: ["karo-9", "kreuz-7"] },
+      discard: ["herz-9"],
+      deck: ["kreuz-A", "kreuz-K", "kreuz-D", "kreuz-B", "karo-A"],
+    };
+    const options = { ...standardOptions, siebenerStapeln: false };
+    let match = play(matchFrom(table, options), "p1", { type: "play", card: "herz-7" });
+    expect(match.state.public).toMatchObject({ current: "p2", penalty: 2 });
+    expect(movesOf(match, "p2")).toEqual([{ type: "draw" }]);
+    match = play(match, "p2", { type: "draw" });
+    expect(match.state.players["p2"]?.hand).toHaveLength(4);
+    expect(match.state.public).toMatchObject({ current: "p3", penalty: 0 });
+    expect(movesOf(match, "p3")).toEqual([{ type: "play", card: "kreuz-7" }]);
+  });
+
+  it("lässt bei Ass mit „Nächster setzt aus“ den Nächsten aussetzen statt selbst nachzulegen", () => {
+    const table: Table = { hands: { p1: ["herz-A", "pik-9"], p2: ["herz-D"], p3: ["herz-K", "pik-D"] }, discard: ["herz-9"], deck: ["kreuz-K"] };
+    const standard = play(matchFrom(table), "p1", { type: "play", card: "herz-A" });
+    expect(standard.state.public).toMatchObject({ current: "p1", phase: "play" });
+    const skip = play(matchFrom(table, { ...standardOptions, ass: "aussetzen" }), "p1", { type: "play", card: "herz-A" });
+    expect(skip.state.public).toMatchObject({ current: "p3", phase: "play" });
+    expect(movesOf(skip, "p1")).toEqual([]);
+    expect(movesOf(skip, "p2")).toEqual([]);
+    expect(movesOf(skip, "p3")).toEqual([{ type: "play", card: "herz-K" }]);
+  });
+
+  it("spielt mit jeder Kombination von Hausregeln ganze Partien zu Ende", () => {
+    for (const bubeAufBube of [false, true]) {
+      for (const siebenerStapeln of [false, true]) {
+        for (const ass of ["nochmal", "aussetzen"] as const) {
+          const options = { bubeAufBube, siebenerStapeln, ass };
+          const created = createMatch(mauMau, { playerCount: 3, seed: `haus-${bubeAufBube}-${siebenerStapeln}-${ass}`, options });
+          if (!created.ok) {
+            throw new Error(created.error.message);
+          }
+          let match = created.match;
+          for (let step = 0; step < 2000 && match.result === undefined; step++) {
+            const player = match.players.find((seat) => (match.moves[seat] ?? []).length > 0) as string;
+            const outcome = applyMove(mauMau, match, { player, action: (match.moves[player] ?? [])[0]!, now: 0 });
+            if (!outcome.ok) {
+              throw new Error(outcome.error.message);
+            }
+            match = outcome.match;
+          }
+          expect(match.result, JSON.stringify(options)).toBeDefined();
+        }
+      }
+    }
   });
 });

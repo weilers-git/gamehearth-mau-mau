@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import type { GameConnection, GameUpdate, MoveResult } from "@gamehearth/sdk/client";
-import type { Card, MauMauAction, MauMauState, Suit } from "../../src/index";
+import type { Card, MauMauAction, MauMauState, Options, Suit } from "../../src/index";
 import { backKey, cardRatio, createTextures, faceKey, feltKey, suitKey, type TextureSink } from "./art";
 import {
   choices,
@@ -8,6 +8,8 @@ import {
   drawLabel,
   handSlots,
   opponents,
+  penaltyBadge,
+  pileBadge,
   seatSlots,
   sortHand,
   statusLine,
@@ -20,7 +22,7 @@ import {
   type Snapshot,
 } from "./view";
 
-type Update = GameUpdate<MauMauState, MauMauAction>;
+type Update = GameUpdate<MauMauState, MauMauAction, Options>;
 
 const font = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
 const colors = { accent: 0xe9a23b, accentText: "#f6c66a", text: "#f4ece5", muted: "#b8cbbd", dark: 0x0f2a1c, button: 0xfffdf8, buttonText: "#2a201b" };
@@ -41,7 +43,7 @@ interface Metrics {
 }
 
 export class TableScene extends Phaser.Scene {
-  readonly #connection: GameConnection<MauMauState, MauMauAction>;
+  readonly #connection: GameConnection<MauMauState, MauMauAction, Options>;
   readonly #dpr: number;
   #update: Update | undefined;
   #previous: Snapshot | undefined;
@@ -58,7 +60,7 @@ export class TableScene extends Phaser.Scene {
   #buttons!: Phaser.GameObjects.Container;
   #overlay!: Phaser.GameObjects.Container;
 
-  constructor(connection: GameConnection<MauMauState, MauMauAction>, dpr: number) {
+  constructor(connection: GameConnection<MauMauState, MauMauAction, Options>, dpr: number) {
     super("table");
     this.#connection = connection;
     this.#dpr = dpr;
@@ -123,7 +125,7 @@ export class TableScene extends Phaser.Scene {
     this.#renderPile(snapshot, m, animated, seatPositions);
     this.#renderHand(snapshot, m, animated);
     this.#renderOpponentDraws(snapshot, m, animated, seatPositions);
-    this.#renderControls(snapshot, update.players, m);
+    this.#renderControls(snapshot, update.players, update.options, m);
     this.#renderOverlay(snapshot, m);
     this.#previous = snapshot;
   }
@@ -303,7 +305,7 @@ export class TableScene extends Phaser.Scene {
     }
   }
 
-  #renderControls(snapshot: Snapshot, players: Players, m: Metrics): void {
+  #renderControls(snapshot: Snapshot, players: Players, options: Options, m: Metrics): void {
     const status = statusLine(snapshot, players);
     this.#status
       .setText(status.text)
@@ -314,24 +316,26 @@ export class TableScene extends Phaser.Scene {
 
     this.#badges.removeAll(true);
     const badgeY = m.pile.y - m.cardHeight / 2 - 16 * m.u;
-    if (snapshot.public.wish !== null) {
-      this.#badges.add(this.#badge(m.pile.x, badgeY, `Wunsch: ${suitNames[snapshot.public.wish]}`, snapshot.public.wish, m));
+    const pile = pileBadge(snapshot, options);
+    if (pile !== undefined) {
+      this.#badges.add(this.#badge(m.pile.x, badgeY, pile.text, pile.suit, m));
     }
-    if (snapshot.public.penalty > 0) {
-      this.#badges.add(this.#badge(m.deck.x, m.deck.y - m.cardHeight / 2 - 16 * m.u, `+${snapshot.public.penalty}`, undefined, m));
+    const penalty = penaltyBadge(snapshot, options);
+    if (penalty !== undefined) {
+      this.#badges.add(this.#badge(m.deck.x, m.deck.y - m.cardHeight / 2 - 16 * m.u, penalty, undefined, m));
     }
 
     this.#buttons.removeAll(true);
     if (snapshot.result !== undefined) {
       return;
     }
-    const options = choices(snapshot.moves);
+    const available = choices(snapshot.moves);
     const labels: { text: string; move: MauMauAction }[] = [];
-    if (options.draw !== undefined) {
-      labels.push({ text: drawLabel(snapshot), move: options.draw });
+    if (available.draw !== undefined) {
+      labels.push({ text: drawLabel(snapshot), move: available.draw });
     }
-    if (options.pass !== undefined) {
-      labels.push({ text: "Behalten", move: options.pass });
+    if (available.pass !== undefined) {
+      labels.push({ text: "Behalten", move: available.pass });
     }
     const width = Math.min(170 * m.u, (m.width - 40 * m.u) / Math.max(labels.length, 1));
     labels.forEach((label, index) => {

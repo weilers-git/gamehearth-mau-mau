@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { connect } from "@gamehearth/sdk/client";
-import type { MauMauAction, MauMauState } from "../../src/index";
+import type { MauMauAction, MauMauState, Options } from "../../src/index";
 import { mountAccessibleControls } from "./access";
 import { TableScene } from "./table";
 
@@ -11,7 +11,7 @@ async function start(): Promise<void> {
   }
   let connection;
   try {
-    connection = await connect<MauMauState, MauMauAction>();
+    connection = await connect<MauMauState, MauMauAction, Options>();
   } catch (error) {
     const fallback = document.getElementById("fallback");
     if (fallback !== null) {

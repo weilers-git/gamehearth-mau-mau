@@ -1,5 +1,5 @@
 import { applyMove, matchFormat, randomStateFromSeed, type Match } from "@gamehearth/sdk/platform";
-import { mauMau, type Card, type MauMauAction, type MauMauState, type Phase, type Suit } from "../src";
+import { mauMau, standardOptions, type Card, type MauMauAction, type MauMauState, type Options, type Phase, type Suit } from "../src";
 
 export type MauMauMatch = Match<MauMauState, MauMauAction>;
 
@@ -14,7 +14,7 @@ export interface Table {
   stuck?: number;
 }
 
-export function matchFrom(table: Table): MauMauMatch {
+export function matchFrom(table: Table, options: Options = standardOptions): MauMauMatch {
   const players = Object.keys(table.hands);
   const deck = table.deck ?? [];
   const state: MauMauState = {
@@ -35,8 +35,9 @@ export function matchFrom(table: Table): MauMauMatch {
     format: matchFormat,
     seed: "tisch",
     players,
+    options: { ...options },
     state,
-    moves: Object.fromEntries(players.map((player) => [player, mauMau.legalMoves(state, player)])),
+    moves: Object.fromEntries(players.map((player) => [player, mauMau.legalMoves(state, player, { players, options })])),
     randomState: randomStateFromSeed("tisch"),
     version: 0,
   };

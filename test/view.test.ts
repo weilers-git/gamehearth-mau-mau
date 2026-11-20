@@ -8,7 +8,10 @@ import {
   describeTable,
   drawLabel,
   handSlots,
+  houseRules,
   opponents,
+  penaltyBadge,
+  pileBadge,
   resultText,
   seatSlots,
   sortHand,
@@ -18,7 +21,7 @@ import {
   type Players,
   type Snapshot,
 } from "../client/src/view";
-import type { MauMauAction } from "../src/index";
+import { standardOptions, type MauMauAction } from "../src/index";
 
 const players: Players = {
   p1: { name: "Anna", connected: true, you: true },
@@ -110,8 +113,30 @@ describe("Statuszeile", () => {
   });
 
   it("beschreibt den Tisch ohne verdeckte Karten anderer", () => {
-    const text = describeTable(snapshot({ wish: "pik" }), players);
+    const text = describeTable(snapshot({ wish: "pik" }), players, standardOptions);
     expect(text).toBe("Oben liegt Herz 9. Gewünscht ist Pik. Deine Karten: Kreuz Bube, Herz 7, Karo König. Ben hat 5 Karten. Clara hat 4 Karten.");
+  });
+
+  it("nennt Hausregeln, die vom Standard abweichen", () => {
+    expect(houseRules(standardOptions)).toBe("");
+    expect(houseRules({ bubeAufBube: true, siebenerStapeln: false, ass: "aussetzen" })).toBe(
+      "Hausregeln: Bube auf Bube, 7er nicht stapeln, nach einem Ass setzt der Nächste aus.",
+    );
+    expect(describeTable(snapshot(), players, { ...standardOptions, bubeAufBube: true })).toMatch(/^Hausregeln: Bube auf Bube\. Oben liegt/);
+  });
+
+  it("zeigt Hausregeln dort an, wo sie gerade greifen", () => {
+    const strict = { ...standardOptions, siebenerStapeln: false };
+    expect(penaltyBadge(snapshot({ penalty: 2 }), standardOptions)).toBe("+2");
+    expect(penaltyBadge(snapshot({ penalty: 2 }), strict)).toBe("+2 · nicht stapeln");
+    expect(penaltyBadge(snapshot(), strict)).toBeUndefined();
+    const buben = { ...standardOptions, bubeAufBube: true };
+    expect(pileBadge(snapshot({ wish: "pik", discard: ["herz-9", "kreuz-B"] }), buben)).toEqual({ text: "Wunsch: Pik · Bube auf Bube", suit: "pik" });
+    expect(pileBadge(snapshot({ wish: "pik", discard: ["herz-9", "kreuz-B"] }), standardOptions)).toEqual({ text: "Wunsch: Pik", suit: "pik" });
+    const ass = { ...standardOptions, ass: "aussetzen" as const };
+    expect(pileBadge(snapshot({ discard: ["herz-9", "herz-A"] }), ass)).toEqual({ text: "Nächster setzt aus", suit: undefined });
+    expect(pileBadge(snapshot({ discard: ["herz-A"] }), ass)).toBeUndefined();
+    expect(pileBadge(snapshot({ discard: ["herz-9", "herz-A"] }), standardOptions)).toBeUndefined();
   });
 });
 

@@ -30,7 +30,15 @@ export type MauMauState = GameState<Public, Hand, Secret>;
 
 export type MauMauAction = { type: "play"; card: Card; wish?: Suit } | { type: "draw" } | { type: "pass" };
 
-export const mauMau = defineGame<MauMauState, MauMauAction>({
+export interface Options {
+  bubeAufBube: boolean;
+  siebenerStapeln: boolean;
+  ass: "nochmal" | "aussetzen";
+}
+
+export const standardOptions: Options = { bubeAufBube: false, siebenerStapeln: true, ass: "nochmal" };
+
+export const mauMau = defineGame<MauMauState, MauMauAction, Options>({
   setup({ players, random }) {
     const deck = random.shuffle(fullDeck);
     const hands: Record<PlayerId, Hand> = {};
@@ -59,26 +67,26 @@ export const mauMau = defineGame<MauMauState, MauMauAction>({
     return state;
   },
 
-  legalMoves(state, player) {
+  legalMoves(state, player, { options }) {
     if (player !== state.public.current) {
       return [];
     }
     const own = handOf(state, player);
     if (state.public.phase === "drawn") {
-      const plays = own.drawn !== null && fits(state, own.drawn) ? playMoves(own.drawn) : [];
+      const plays = own.drawn !== null && fits(state, own.drawn, options) ? playMoves(own.drawn) : [];
       return [...plays, { type: "pass" }];
     }
-    const plays = own.hand.filter((card) => fits(state, card)).flatMap(playMoves);
+    const plays = own.hand.filter((card) => fits(state, card, options)).flatMap(playMoves);
     if (state.public.penalty > 0) {
       return [...plays, { type: "draw" }];
     }
     return plays.length > 0 ? plays : [{ type: "draw" }];
   },
 
-  apply(state, action, { player, players, random }) {
+  apply(state, action, { player, players, random, options }) {
     switch (action.type) {
       case "play":
-        playCard(state, player, players, action.card, action.wish);
+        playCard(state, player, players, action.card, action.wish, options);
         break;
       case "draw":
         drawCards(state, player, players, random);
@@ -112,13 +120,13 @@ export function topCard(state: MauMauState): Card {
   return top;
 }
 
-export function fits(state: MauMauState, card: Card): boolean {
+export function fits(state: MauMauState, card: Card, options: Options): boolean {
   const top = topCard(state);
   if (state.public.penalty > 0) {
-    return rankOf(card) === "7";
+    return options.siebenerStapeln && rankOf(card) === "7";
   }
   if (rankOf(card) === "B") {
-    return rankOf(top) !== "B";
+    return options.bubeAufBube || rankOf(top) !== "B";
   }
   if (state.public.wish !== null) {
     return suitOf(card) === state.public.wish;
@@ -144,6 +152,7 @@ function playCard(
   players: readonly PlayerId[],
   card: Card,
   wish: Suit | undefined,
+  options: Options,
 ): void {
   const own = handOf(state, player);
   own.hand = own.hand.filter((held) => held !== card);
@@ -168,7 +177,11 @@ function playCard(
       endTurn(state, players, 1);
       break;
     case "A":
-      state.public.phase = "play";
+      if (options.ass === "aussetzen") {
+        endTurn(state, players, 2);
+      } else {
+        state.public.phase = "play";
+      }
       break;
     default:
       endTurn(state, players, 1);

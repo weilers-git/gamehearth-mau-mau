@@ -1,8 +1,8 @@
 import type { GameConnection } from "@gamehearth/sdk/client";
-import type { MauMauAction, MauMauState } from "../../src/index";
+import type { MauMauAction, MauMauState, Options } from "../../src/index";
 import { describeMove, describeTable, statusLine, type Snapshot } from "./view";
 
-export function mountAccessibleControls(root: HTMLElement, connection: GameConnection<MauMauState, MauMauAction>): void {
+export function mountAccessibleControls(root: HTMLElement, connection: GameConnection<MauMauState, MauMauAction, Options>): void {
   const status = document.createElement("p");
   status.setAttribute("aria-live", "polite");
   const table = document.createElement("p");
@@ -14,7 +14,7 @@ export function mountAccessibleControls(root: HTMLElement, connection: GameConne
   connection.onUpdate((update) => {
     const snapshot = update.snapshot as Snapshot;
     status.textContent = statusLine(snapshot, update.players).text;
-    table.textContent = describeTable(snapshot, update.players);
+    table.textContent = describeTable(snapshot, update.players, update.options);
     moves.replaceChildren(
       ...snapshot.moves.map((move) => {
         const button = document.createElement("button");

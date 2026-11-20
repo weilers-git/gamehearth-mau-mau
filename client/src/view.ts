@@ -1,5 +1,5 @@
 import type { GameResult, PlayerId, PlayerInfo, PlayerSnapshot } from "@gamehearth/sdk/client";
-import type { Card, Hand, MauMauAction, Public, Rank, Suit } from "../../src/index";
+import type { Card, Hand, MauMauAction, Options, Public, Rank, Suit } from "../../src/index";
 
 export type Snapshot = PlayerSnapshot<Public, Hand, MauMauAction>;
 export type Players = Record<PlayerId, PlayerInfo>;
@@ -161,9 +161,40 @@ export function describeMove(move: MauMauAction, snapshot: Snapshot): string {
   return move.wish === undefined ? `${cardName(move.card)} legen` : `${cardName(move.card)} legen, Wunsch ${suitNames[move.wish]}`;
 }
 
-export function describeTable(snapshot: Snapshot, players: Players): string {
+export function houseRules(options: Options): string {
+  const rules = [
+    options.bubeAufBube ? "Bube auf Bube" : "",
+    options.siebenerStapeln ? "" : "7er nicht stapeln",
+    options.ass === "aussetzen" ? "nach einem Ass setzt der Nächste aus" : "",
+  ].filter((rule) => rule !== "");
+  return rules.length === 0 ? "" : `Hausregeln: ${rules.join(", ")}.`;
+}
+
+export function penaltyBadge(snapshot: Snapshot, options: Options): string | undefined {
+  if (snapshot.public.penalty <= 0) {
+    return undefined;
+  }
+  return options.siebenerStapeln ? `+${snapshot.public.penalty}` : `+${snapshot.public.penalty} · nicht stapeln`;
+}
+
+export function pileBadge(snapshot: Snapshot, options: Options): { text: string; suit: Suit | undefined } | undefined {
+  const discard = snapshot.public.discard;
+  const top = discard[discard.length - 1];
+  const rank = top === undefined ? undefined : cardParts(top).rank;
+  if (snapshot.public.wish !== null) {
+    const text = `Wunsch: ${suitNames[snapshot.public.wish]}`;
+    return { text: options.bubeAufBube && rank === "B" ? `${text} · Bube auf Bube` : text, suit: snapshot.public.wish };
+  }
+  if (options.ass === "aussetzen" && rank === "A" && discard.length > 1) {
+    return { text: "Nächster setzt aus", suit: undefined };
+  }
+  return undefined;
+}
+
+export function describeTable(snapshot: Snapshot, players: Players, options: Options): string {
   const top = snapshot.public.discard[snapshot.public.discard.length - 1];
   const parts = [
+    houseRules(options),
     top === undefined ? "" : `Oben liegt ${cardName(top)}.`,
     snapshot.public.wish === null ? "" : `Gewünscht ist ${suitNames[snapshot.public.wish]}.`,
     `Deine Karten: ${sortHand(snapshot.me.hand).map(cardName).join(", ") || "keine"}.`,
